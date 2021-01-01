@@ -1,0 +1,4 @@
+3
+weapon		640 	x_re/640hud184		0	90	170	45
+weapon_s	640 	x_re/640hud184		0	135	170	45
+ammo		640 	640hud7				144	72	24	24
