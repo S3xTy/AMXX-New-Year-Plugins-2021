@@ -84,8 +84,7 @@ new const ENTITY_MISSILE_SPRITES[][] =
 	"sprites/x_re/fg_spark1.spr", // 0
 	"sprites/x_re/fg_spark2.spr", // 1
 	"sprites/x_re/fg_spark3.spr", // 2
-	"sprites/laserbeam.spr", // 4
-	"sprites/spotlight03.spr" // 5
+	"sprites/laserbeam.spr" // 4
 };
 const Float: ENTITY_MISSILE_SPEED =		350.0;
 const Float: ENTITY_MISSILE_LIFETIME =	1.5;
@@ -108,8 +107,7 @@ enum _: eSprites
 	eSprite_Spark1 = 0,
 	eSprite_Spark2,
 	eSprite_Spark3,
-	eSprite_Trail,
-	eSprite_Null
+	eSprite_Trail
 };
 
 #define WEAPON_ANIM_IDLE_TIME 			51/30.0
@@ -446,7 +444,7 @@ public CMissile_Think(const pEntity)
 	}
 
 	static Float: vecOrigin[3]; get_entvar(pEntity, var_origin, vecOrigin);
-	UTIL_CreateExplosion(vecOrigin, 0.0, gl_iszModelIndex_Sprites[eSprite_Null], 1, 8, 2|4);
+	engfunc(EngFunc_ParticleEffect, vecOrigin, Float: { 0.0, 0.0, 1000.0 }, 127.0, 25.0);
 
 	// https://github.com/baso88/SC_AngelScript/wiki/TE_SPARKS
 	message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
