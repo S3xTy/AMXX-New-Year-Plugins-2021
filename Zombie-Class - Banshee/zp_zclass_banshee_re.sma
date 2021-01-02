@@ -106,12 +106,12 @@ public Command_HookWeapon(const pPlayer)
 
 public Command_HookDrop(const pPlayer)
 {
-	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer) || zp_get_user_nemesis(pPlayer)) return PLUGIN_CONTINUE;
+	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || zp_get_user_nemesis(pPlayer)) return PLUGIN_CONTINUE;
 
 	new pActiveItem = get_member(pPlayer, m_pActiveItem);
-	if(!is_nullent(pActiveItem) && get_member(pActiveItem, m_iId) != CSW_KNIFE) return PLUGIN_CONTINUE;
+	if(!is_nullent(pActiveItem) && get_member(pActiveItem, m_iId) != WEAPON_KNIFE) return PLUGIN_CONTINUE;
 
-	if(_is_banshee_zombie_class(pPlayer) && !BIT_VALID(gl_bitPlayerSkillActive, pPlayer) && gl_flAbilityWait[pPlayer] < get_gametime())
+	if(!BIT_VALID(gl_bitPlayerSkillActive, pPlayer) && gl_flAbilityWait[pPlayer] < get_gametime())
 	{
 		if(CPlayer_Create_Bats(pPlayer))
 		{
@@ -164,7 +164,7 @@ public CGame_RestartRound_Post()
 
 	new pEntity = NULLENT;
 	while((pEntity = rg_find_ent_by_class(pEntity, ENTITY_BATS_CLASSNAME)))
-		UTIL_KillEntity(pEntity);
+		if(!is_nullent(pEntity)) UTIL_KillEntity(pEntity);
 }
 
 /* ~ [ HamSandwich ] ~ */
@@ -304,7 +304,7 @@ public CBats_Touch(const pEntity, const pTouch)
 		return;
 	}
 
-	if(IsEntityUser(pTouch) && !_is_user_zombie(pTouch) && !BIT_VALID(gl_bitPlayerCathced, pTouch))
+	if(!_is_user_zombie(pTouch) && !BIT_VALID(gl_bitPlayerCathced, pTouch))
 	{
 		BIT_ADD(gl_bitPlayerCathced, pTouch);
 
@@ -388,11 +388,8 @@ stock UTIL_KillEntity(const pEntity)
 	write_short(pEntity);
 	message_end();
 
-	set_entvar(pEntity, var_flags, get_entvar(pEntity, var_flags) | FL_KILLME);
+	set_entvar(pEntity, var_flags, FL_KILLME);
 	set_entvar(pEntity, var_nextthink, get_gametime());
-
-	SetThink(pEntity, "");
-	SetTouch(pEntity, "");
 }
 
 stock UTIL_SendWeaponAnim(const pPlayer, const iAnim)

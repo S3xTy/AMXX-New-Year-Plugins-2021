@@ -605,11 +605,8 @@ stock UTIL_KillEntity(const pEntity)
 	write_short(pEntity);
 	message_end();
 
-	set_entvar(pEntity, var_flags, get_entvar(pEntity, var_flags) | FL_KILLME);
+	set_entvar(pEntity, var_flags, FL_KILLME);
 	set_entvar(pEntity, var_nextthink, get_gametime());
-
-	SetThink(pEntity, "");
-	SetTouch(pEntity, "");
 }
 
 stock Float: UTIL_CalculateDamage(const Float: vecOrigin[3], const Float: vecVictimOrigin[3], const Float: flDamage, const Float: flRadius)
