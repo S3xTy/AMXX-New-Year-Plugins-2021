@@ -106,7 +106,7 @@ public Command_HookWeapon(const pPlayer)
 
 public Command_HookDrop(const pPlayer)
 {
-	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer)) return PLUGIN_CONTINUE;
+	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer) || zp_get_user_nemesis(pPlayer)) return PLUGIN_CONTINUE;
 
 	new pActiveItem = get_member(pPlayer, m_pActiveItem);
 	if(!is_nullent(pActiveItem) && get_member(pActiveItem, m_iId) != CSW_KNIFE) return PLUGIN_CONTINUE;
