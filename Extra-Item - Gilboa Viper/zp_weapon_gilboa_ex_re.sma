@@ -22,6 +22,8 @@
 #define WALLPUFF_SMOKE					// Comment this line if u dont need wallpuff smoke
 #define DYNAMIC_CROSSHAIR 				// Comment this line if u dont need dynamic crosshair (With it not work's plugin Unlimited Clip)
 
+#define LOWER_LIMIT_OF_ENTITIES			100
+
 #define IsCustomWeapon(%0) 				(get_entvar(%0, var_impulse) == WEAPON_SPECIAL_CODE)
 #define GetItemClip(%0) 				get_member(%0, m_Weapon_iClip)
 #define PrecacheArray(%0,%1)			for(new i; i < sizeof %1; i++) engfunc(EngFunc_Precache%0, %1[i])
@@ -95,6 +97,7 @@ enum _: eAnimList
 
 /* ~ [ Params ] ~ */
 new gl_iItemID;
+new gl_iMaxEntities;
 new Array: gl_aDecals;
 #if defined EJECT_BRASS
 	new gl_iszModelIndex_Shell;
@@ -149,6 +152,9 @@ public plugin_init()
 	#if defined DYNAMIC_CROSSHAIR
 		gl_iMsgID_CurWeapon = get_user_msgid("CurWeapon");
 	#endif
+
+	/* -> Other -> */
+	gl_iMaxEntities = global_get(glb_maxEntities);
 }
 
 public plugin_precache()
@@ -592,15 +598,15 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 #if defined CUSTOM_MUZZLEFLASH
 	stock UTIL_DrawMuzzleFlash(const pPlayer, const szModel[], const iAttachment = 1, const Float: flScale = 0.08, const Float: flFramerateMlt = 2.0, const Float: flColor[3] = { 0.0, 0.0, 0.0 }, const Float: flBrightness = 255.0)
 	{
-		if(global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) < 100) return;
-		if(!strlen(szModel)) return;
+		if(gl_iMaxEntities - engfunc(EngFunc_NumberOfEntities) <= LOWER_LIMIT_OF_ENTITIES) return NULLENT;
+		if(!strlen(szModel)) return NULLENT;
 
 		static pSprite; pSprite = NULLENT;
 		rg_find_ent_by_owner(pSprite, MUZZLEFLASH_CLASSNAME, pPlayer);
 		if(!is_nullent(pSprite))
 		{
 			set_entvar(pSprite, var_frame, 0.0);
-			return;
+			return NULLENT;
 		}
 
 		pSprite = rg_create_entity("env_sprite");
@@ -623,16 +629,18 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 		
 		engfunc(EngFunc_SetModel, pSprite, szModel);
 		dllfunc(DLLFunc_Spawn, pSprite);
+
+		return pSprite;
 	}
 #endif
 
 #if defined WALLPUFF_SMOKE
 	stock UTIL_SmokeWallpuff(Float: vecEndPos[3], Float: vecPlaneNormal[3], szModel[MAX_RESOURCE_PATH_LENGTH] = "", const Float: flScale = 0.5, const Float: flColor[3] = { 40.0, 40.0, 40.0 })
 	{
-		if(global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) < 100) return;
+		if(gl_iMaxEntities - engfunc(EngFunc_NumberOfEntities) <= LOWER_LIMIT_OF_ENTITIES) return NULLENT;
 		
 		new pSprite = rg_create_entity("env_sprite");
-		if(is_nullent(pSprite)) return;
+		if(is_nullent(pSprite)) return NULLENT;
 
 		if(!strlen(szModel)) formatex(szModel, charsmax(szModel), "sprites/wall_puff%i.spr", random_num(1, 4));
 
@@ -653,6 +661,8 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 		dllfunc(DLLFunc_Spawn, pSprite);
 
 		set_entvar(pSprite, var_movetype, MOVETYPE_NOCLIP);
+
+		return pSprite;
 	}
 #endif
 

@@ -6,6 +6,8 @@
 #include <zombieplague>
 
 /* ~ [ Macroses ] ~ */
+#define LOWER_LIMIT_OF_ENTITIES			100
+
 #define PrecacheArray(%0,%1) 			for(new i; i < sizeof %1; i++) engfunc(EngFunc_Precache%0, %1[i])
 #define IsEntityUser(%0) 				(%0 && 0 < MaxClients < 33 && is_user_connected(%0))
 #define _is_user_zombie(%0) 			zp_get_user_zombie(%0)
@@ -46,6 +48,7 @@ const Float: ENTITY_BATS_LIFETIME =		3.0;
 
 /* ~ [ Params ] ~ */
 new gl_iZClassID;
+new gl_iMaxEntities;
 new gl_iszModelIndex_Effect;
 new gl_bitPlayerCathced, gl_bitPlayerSkillActive;
 new Float: gl_flAbilityWait[MAX_PLAYERS + 1];
@@ -71,6 +74,9 @@ public plugin_init()
 	/* -> Client Commands -> */
 	register_clcmd("drop", "Command_HookDrop");
 	register_clcmd(WEAPONLIST_PATH, "Command_HookWeapon");
+
+	/* -> Other -> */
+	gl_iMaxEntities = global_get(glb_maxEntities);
 }
 
 public plugin_precache()
@@ -248,6 +254,8 @@ public CPlayer_Set_SkillWait(const pPlayer, const Float: flWaitTime)
 
 public CPlayer_Create_Bats(const pPlayer)
 {
+	if(gl_iMaxEntities - engfunc(EngFunc_NumberOfEntities) <= LOWER_LIMIT_OF_ENTITIES) return NULLENT;
+
 	new pEntity = rg_create_entity("info_target");
 	if(is_nullent(pEntity)) return NULLENT;
 

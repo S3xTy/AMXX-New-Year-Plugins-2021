@@ -18,6 +18,8 @@
 /* ~ [ Macroses ] ~ */
 #define CUSTOM_WEAPONLIST 				// Comment this line if u dont need weapon list
 
+#define LOWER_LIMIT_OF_ENTITIES			100
+
 #if defined CUSTOM_WEAPONLIST
 	#define DEFAULT_FOV						89
 #else
@@ -117,6 +119,7 @@ enum _: eSprites
 
 /* ~ [ Params ] ~ */
 new gl_iItemID;
+new gl_iMaxEntities;
 new gl_iszModelIndex_Sprites[sizeof ENTITY_MISSILE_SPRITES];
 #if defined CUSTOM_WEAPONLIST
 	new gl_iMsgID_Weaponlist;
@@ -160,6 +163,9 @@ public plugin_init()
 	#if defined CUSTOM_WEAPONLIST
 		gl_iMsgID_Weaponlist = get_user_msgid("WeaponList");
 	#endif
+
+	/* -> Other -> */
+	gl_iMaxEntities = global_get(glb_maxEntities);
 }
 
 public plugin_precache()
@@ -377,6 +383,8 @@ public CWeapon_SecondaryAttack_Pre(const pItem)
 
 public CMissile_Create(const pPlayer, const pItem)
 {
+	if(gl_iMaxEntities - engfunc(EngFunc_NumberOfEntities) <= LOWER_LIMIT_OF_ENTITIES) return NULLENT;
+	
 	new pEntity = rg_create_entity(ENTITY_MISSILE_REFERENCE);
 	if(is_nullent(pEntity)) return NULLENT;
 
@@ -522,7 +530,7 @@ public CMissile_Explode(const pEntity)
 
 public CMissileSprite_Create(const szSprite[], Float: vecOrigin[3], const Float: flColor[3], const bool: bFirst)
 {
-	if(global_get(glb_maxEntities) - engfunc(EngFunc_NumberOfEntities) < 100) return NULLENT;
+	if(gl_iMaxEntities - engfunc(EngFunc_NumberOfEntities) <= LOWER_LIMIT_OF_ENTITIES) return NULLENT;
 
 	new pSprite = rg_create_entity("env_sprite");
 	if(is_nullent(pSprite)) return NULLENT;
