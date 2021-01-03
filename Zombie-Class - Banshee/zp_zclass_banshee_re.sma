@@ -9,7 +9,6 @@
 #define LOWER_LIMIT_OF_ENTITIES			100
 
 #define PrecacheArray(%0,%1) 			for(new i; i < sizeof %1; i++) engfunc(EngFunc_Precache%0, %1[i])
-#define IsEntityUser(%0) 				(%0 && 0 < MaxClients < 33 && is_user_connected(%0))
 #define _is_user_zombie(%0) 			zp_get_user_zombie(%0)
 #define _is_banshee_zombie_class(%0) 	(zp_get_user_zombie_class(%0) == gl_iZClassID)
 
@@ -306,7 +305,7 @@ public CBats_Touch(const pEntity, const pTouch)
 	if(pTouch == pOwner) return;
 
 	new Float: vecOrigin[3]; get_entvar(pEntity, var_origin, vecOrigin);
-	if(!IsEntityUser(pTouch) || engfunc(EngFunc_PointContents, vecOrigin) == CONTENTS_SKY)
+	if(!is_user_alive(pTouch) || engfunc(EngFunc_PointContents, vecOrigin) == CONTENTS_SKY)
 	{
 		CBats_Destroy(pEntity, pOwner);
 		return;
@@ -343,7 +342,7 @@ public CBats_Think(const pEntity)
 
 	new Float: vecVelocity[3];
 	new pVictim = get_entvar(pEntity, var_aiment);
-	if(!is_nullent(pVictim) && IsEntityUser(pVictim))
+	if(!is_nullent(pVictim) && is_user_alive(pVictim))
 	{
 		new Float: vecOrigin[3]; get_entvar(pOwner, var_origin, vecOrigin);
 		new Float: vecVictimOrigin[3]; get_entvar(pVictim, var_origin, vecVictimOrigin);
