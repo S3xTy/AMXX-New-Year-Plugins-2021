@@ -19,18 +19,13 @@
 #define CUSTOM_WEAPONLIST 				// Comment this line if u dont need weapon list
 
 #define LOWER_LIMIT_OF_ENTITIES			100
-
-#if defined CUSTOM_WEAPONLIST
-	#define DEFAULT_FOV						89
-#else
-	#define DEFAULT_FOV						90
-#endif
+#define DEFAULT_FOV						90
 
 #define var_max_frame 					var_yaw_speed // pEntity
 #define var_first_sprite				var_iuser1 // pEntity
 
 #define _is_user_zombie					zp_get_user_zombie
-#define IsCustomWeapon(%0) 				(get_entvar(%0, var_impulse) == WEAPON_SPECIAL_CODE)
+#define IsCustomWeapon(%0) 				(get_entvar(%0, var_impulse) == gl_iAllocString_WeaponUID)
 #define GetItemClip(%0) 				get_member(%0, m_Weapon_iClip)
 #define IsDefaultFOV(%0)				(get_member(%0, m_iFOV) == DEFAULT_FOV)
 #define PrecacheArray(%0,%1)			for(new i; i < sizeof %1; i++) engfunc(EngFunc_Precache%0, %1[i])
@@ -71,7 +66,7 @@ new const WEAPON_SOUNDS[][] =
 #endif
 
 const WEAPON_MODEL_WORLD_BODY = 		0;
-const WEAPON_SPECIAL_CODE = 			29122020;
+const WEAPON_CROSSHAIR_FOV =			89;
 
 const WEAPON_MAX_CLIP = 				10;
 const WEAPON_DEFAULT_AMMO = 			40;
@@ -120,6 +115,7 @@ enum _: eSprites
 /* ~ [ Params ] ~ */
 new gl_iItemID;
 new gl_iMaxEntities;
+new gl_iAllocString_WeaponUID;
 new gl_iszModelIndex_Sprites[sizeof ENTITY_MISSILE_SPRITES];
 #if defined CUSTOM_WEAPONLIST
 	new gl_iMsgID_Weaponlist;
@@ -129,9 +125,6 @@ new gl_iszModelIndex_Sprites[sizeof ENTITY_MISSILE_SPRITES];
 public plugin_init()
 {
 	register_plugin("[ZP] Weapon: FG-Launcher", "2.0", "xUnicorn (t3rkecorejz)");
-
-	/* -> Register on Extra-Items -> */
-	gl_iItemID = zp_register_extra_item(EXTRA_ITEM_NAME, EXTRA_ITEM_COST, ZP_TEAM_HUMAN);
 
 	/* -> Fakemeta -> */
 	register_forward(FM_UpdateClientData, "FM_Hook_UpdateClientData_Post", true);
@@ -159,6 +152,9 @@ public plugin_init()
 
 	RegisterHam(Ham_Think, "env_sprite", "CSprite_Think_Post", true);
 
+	/* -> Register on Extra-Items -> */
+	gl_iItemID = zp_register_extra_item(EXTRA_ITEM_NAME, EXTRA_ITEM_COST, ZP_TEAM_HUMAN);
+
 	/* -> Messages -> */
 	#if defined CUSTOM_WEAPONLIST
 		gl_iMsgID_Weaponlist = get_user_msgid("WeaponList");
@@ -166,6 +162,7 @@ public plugin_init()
 
 	/* -> Other -> */
 	gl_iMaxEntities = global_get(glb_maxEntities);
+	gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_WEAPONLIST);
 }
 
 public plugin_precache()
@@ -206,7 +203,7 @@ public plugin_natives() register_native(WEAPON_NATIVE, "Command_GiveWeapon", 1);
 
 public Command_GiveWeapon(const pPlayer)
 {
-	new pItem = rg_give_custom_item(pPlayer, WEAPON_REFERENCE, GT_DROP_AND_REPLACE, WEAPON_SPECIAL_CODE);
+	new pItem = rg_give_custom_item(pPlayer, WEAPON_REFERENCE, GT_DROP_AND_REPLACE, gl_iAllocString_WeaponUID);
 	if(is_nullent(pItem)) return NULLENT;
 
 	return pItem;
@@ -266,8 +263,8 @@ public CWeapon_Spawn_Post(const pItem)
 		static pPlayer;
 		if(!CheckItem(pItem, pPlayer)) return HAM_IGNORED;
 
-		UTIL_UpdateHideWeapon(pPlayer, get_member(pPlayer, m_iHideHUD) | HIDEHUD_CROSSHAIR);
-		UTIL_SetUserFOV(pPlayer, DEFAULT_FOV);
+		set_member(pPlayer, m_iHideHUD, get_member(pPlayer, m_iHideHUD) | HIDEHUD_CROSSHAIR);
+		set_member(pPlayer, m_iFOV, WEAPON_CROSSHAIR_FOV);
 
 		return HAM_IGNORED;
 	}
@@ -294,9 +291,9 @@ public CWeapon_Holster_Post(const pItem)
 	if(!CheckItem(pItem, pPlayer)) return;
 
 	#if defined CUSTOM_WEAPONLIST
-		UTIL_UpdateHideWeapon(pPlayer, get_member(pPlayer, m_iHideHUD) & ~HIDEHUD_CROSSHAIR);
+		set_member(pPlayer, m_iHideHUD, get_member(pPlayer, m_iHideHUD) & ~HIDEHUD_CROSSHAIR);
+		set_member(pPlayer, m_iFOV, DEFAULT_FOV);
 	#endif
-	UTIL_SetUserFOV(pPlayer, 90);
 
 	set_member(pItem, m_Weapon_flTimeWeaponIdle, 1.0);
 	set_member(pPlayer, m_flNextAttack, 1.0);
@@ -305,8 +302,8 @@ public CWeapon_Holster_Post(const pItem)
 #if defined CUSTOM_WEAPONLIST
 	public CWeapon_AddToPlayer_Post(const pItem, const pPlayer)
 	{
-		new iWeaponKey = get_entvar(pItem, var_impulse);
-		if(iWeaponKey != 0 && iWeaponKey != WEAPON_SPECIAL_CODE) return;
+		new iWeaponUID = get_entvar(pItem, var_impulse);
+		if(iWeaponUID != 0 && iWeaponUID != gl_iAllocString_WeaponUID) return;
 
 		UTIL_WeaponList(pPlayer, pItem);
 	}
@@ -320,9 +317,9 @@ public CWeapon_Reload_Post(const pItem)
 	if(!get_member(pPlayer, m_rgAmmo, get_member(pItem, m_Weapon_iPrimaryAmmoType))) return;
 	if(GetItemClip(pItem) >= rg_get_iteminfo(pItem, ItemInfo_iMaxClip)) return;
 
-	UTIL_SetUserFOV(pPlayer);
 	UTIL_SendWeaponAnim(pPlayer, WEAPON_ANIM_RELOAD);
 
+	set_member(pPlayer, m_iFOV, WEAPON_CROSSHAIR_FOV);
 	set_member(pPlayer, m_flNextAttack, WEAPON_ANIM_RELOAD_TIME);
 	set_member(pItem, m_Weapon_flTimeWeaponIdle, WEAPON_ANIM_RELOAD_TIME);
 }
@@ -374,8 +371,7 @@ public CWeapon_SecondaryAttack_Pre(const pItem)
 	static pPlayer;
 	if(!CheckItem(pItem, pPlayer)) return HAM_IGNORED;
 
-	UTIL_SetUserFOV(pPlayer, IsDefaultFOV(pPlayer) ? 55 : DEFAULT_FOV);
-
+	set_member(pPlayer, m_iFOV, IsDefaultFOV(pPlayer) ? 55 : WEAPON_CROSSHAIR_FOV);
 	set_member(pPlayer, m_flNextAttack, 0.2);
 
 	return HAM_SUPERCEDE;
@@ -619,36 +615,6 @@ stock UTIL_KillEntity(const pEntity)
 
 stock Float: UTIL_CalculateDamage(const Float: vecOrigin[3], const Float: vecVictimOrigin[3], const Float: flDamage, const Float: flRadius)
 	return (flDamage - xs_vec_distance(vecOrigin, vecVictimOrigin) * (flDamage / flRadius)) * 1.5;
-
-#if defined CUSTOM_WEAPONLIST
-	stock UTIL_UpdateHideWeapon(const pPlayer, const bitsFlags)
-	{
-		if(is_nullent(pPlayer)) return;
-
-		static iMsgId_HideWeapon;
-		if(!iMsgId_HideWeapon) iMsgId_HideWeapon = get_user_msgid("HideWeapon");
-
-		message_begin(MSG_ONE, iMsgId_HideWeapon, .player = pPlayer);
-		write_byte(bitsFlags);
-		message_end();
-
-		set_member(pPlayer, m_iHideHUD, bitsFlags);
-		set_member(pPlayer, m_iClientHideHUD, bitsFlags);
-	}
-#endif
-
-stock UTIL_SetUserFOV(const pPlayer, const iFOV = DEFAULT_FOV)
-{
-	static iMsgId_SetFOV;
-	if(!iMsgId_SetFOV) iMsgId_SetFOV = get_user_msgid("SetFOV");
-
-	message_begin(MSG_ONE, iMsgId_SetFOV, .player = pPlayer);
-	write_byte(iFOV);
-	message_end();
-
-	set_entvar(pPlayer, var_fov, iFOV);
-	set_member(pPlayer, m_iFOV, iFOV);
-}
 
 stock UTIL_SendWeaponAnim(const pPlayer, const iAnim)
 {
