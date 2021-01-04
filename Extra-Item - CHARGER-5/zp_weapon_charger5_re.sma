@@ -26,7 +26,7 @@
 #define LOWER_LIMIT_OF_ENTITIES			100
 
 #define IsEntityUser(%0) 				(%0 && 0 < MaxClients < 33 && is_user_connected(%0))
-#define IsCustomWeapon(%0) 				(get_entvar(%0, var_impulse) == WEAPON_SPECIAL_CODE)
+#define IsCustomWeapon(%0) 				(get_entvar(%0, var_impulse) == gl_iAllocString_WeaponUID)
 #define GetItemClip(%0) 				get_member(%0, m_Weapon_iClip)
 #define PrecacheArray(%0,%1)			for(new i; i < sizeof %1; i++) engfunc(EngFunc_Precache%0, %1[i])
 
@@ -67,6 +67,7 @@ new const WEAPON_SOUNDS[][] =
 #endif
 #if defined CUSTOM_MUZZLEFLASH
 	#define var_max_frame var_yaw_speed
+	new const MUZZLEFLASH_REFERENCE[] = "env_sprite";
 	new const MUZZLEFLASH_CLASSNAME[] = "ent_muzzleflash_x";
 	new const MUZZLEFLASH_SPRITE[] = 	"sprites/x_re/muzzleflash63.spr";
 #endif
@@ -76,8 +77,6 @@ new const WEAPON_SOUNDS[][] =
 #endif
 
 const WEAPON_MODEL_WORLD_BODY = 		0;
-const WEAPON_SPECIAL_CODE = 			161220201;
-
 const WEAPON_MAX_CLIP = 				30;
 const WEAPON_DEFAULT_AMMO = 			180;
 const WEAPON_SHOT_PENETRATION = 		2;
@@ -96,6 +95,7 @@ const WEAPON_MAX_SECONDARY_AMMO =		20;
 /* ~ [ Entity: Beam ] ~ */
 new const ENTITY_BEAM_SPRITE[] =		"sprites/laserbeam.spr";
 const Float: ENTITY_BEAM_WIDTH =		15.0;
+const Float: ENTITY_BEAM_NEXTTHINK =	0.075;
 
 /* ~ [ Weapon Animations ] ~ */
 enum eAnimList
@@ -120,6 +120,8 @@ enum eAnimList
 new gl_iItemID;
 new gl_iMaxEntities;
 new Array: gl_aDecals;
+new gl_FmHook_DecalIndex;
+new gl_iAllocString_WeaponUID;
 new gl_iszModelIndex_BloodSpray, gl_iszModelIndex_BloodDrop;
 #if defined EJECT_BRASS
 	new gl_iszModelIndex_Shell;
@@ -136,10 +138,8 @@ public plugin_init()
 {
 	register_plugin("[ZP] Weapon: CHARGER-5", "2.0", "xUnicorn (t3rkecorejz)");
 
-	/* -> Register on Extra-Items -> */
-	gl_iItemID = zp_register_extra_item(EXTRA_ITEM_NAME, EXTRA_ITEM_COST, ZP_TEAM_HUMAN);
-
 	/* -> Fakemeta -> */
+	unregister_forward(FM_DecalIndex, gl_FmHook_DecalIndex, true);
 	register_forward(FM_UpdateClientData, "FM_Hook_UpdateClientData_Post", true);
 
 	/* -> ReAPI -> */
@@ -167,6 +167,9 @@ public plugin_init()
 		RegisterHam(Ham_Think, "env_sprite", "CSprite_Think_Post", true);
 	#endif
 
+	/* -> Register on Extra-Items -> */
+	gl_iItemID = zp_register_extra_item(EXTRA_ITEM_NAME, EXTRA_ITEM_COST, ZP_TEAM_HUMAN);
+
 	/* -> Messages -> */
 	#if defined CUSTOM_WEAPONLIST || defined DYNAMIC_CROSSHAIR
 		gl_iMsgID_Weaponlist = get_user_msgid("WeaponList");
@@ -177,6 +180,7 @@ public plugin_init()
 
 	/* -> Other -> */
 	gl_iMaxEntities = global_get(glb_maxEntities);
+	gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_WEAPONLIST);
 }
 
 public plugin_precache()
@@ -214,8 +218,7 @@ public plugin_precache()
 
 	/* -> Decals -> */
 	gl_aDecals = ArrayCreate(1, 1);
-
-	register_forward(FM_DecalIndex, "FM_Hook_DecalIndex_Post", true);
+	gl_FmHook_DecalIndex = register_forward(FM_DecalIndex, "FM_Hook_DecalIndex_Post", true);
 }
 
 public plugin_natives() register_native(WEAPON_NATIVE, "Command_GiveWeapon", 1);
@@ -230,7 +233,7 @@ public plugin_natives() register_native(WEAPON_NATIVE, "Command_GiveWeapon", 1);
 
 public Command_GiveWeapon(const pPlayer)
 {
-	new pItem = rg_give_custom_item(pPlayer, WEAPON_REFERENCE, GT_DROP_AND_REPLACE, WEAPON_SPECIAL_CODE);
+	new pItem = rg_give_custom_item(pPlayer, WEAPON_REFERENCE, GT_DROP_AND_REPLACE, gl_iAllocString_WeaponUID);
 	if(is_nullent(pItem)) return NULLENT;
 
 	set_entvar(pItem, var_secondary_ammo, 0);
@@ -307,7 +310,7 @@ public CWeapon_Spawn_Post(const pItem)
 
 public CWeapon_Deploy_Post(const pItem)
 {
-	new pPlayer;
+	static pPlayer;
 	if(!CheckItem(pItem, pPlayer)) return;
 
 	set_entvar(pPlayer, var_viewmodel, WEAPON_MODEL_VIEW);
@@ -324,7 +327,7 @@ public CWeapon_Deploy_Post(const pItem)
 
 public CWeapon_Holster_Post(const pItem)
 {
-	new pPlayer;
+	static pPlayer;
 	if(!CheckItem(pItem, pPlayer)) return;
 
 	#if defined CUSTOM_MUZZLEFLASH
@@ -333,17 +336,15 @@ public CWeapon_Holster_Post(const pItem)
 			UTIL_KillEntity(pSprite);
 	#endif
 	
-	set_member(pItem, m_Weapon_flNextPrimaryAttack, 0.0);
-	set_member(pItem, m_Weapon_flNextSecondaryAttack, 0.0);
-	set_member(pItem, m_Weapon_flTimeWeaponIdle, 0.0);
-	set_member(pPlayer, m_flNextAttack, 0.0);
+	set_member(pItem, m_Weapon_flTimeWeaponIdle, 1.0);
+	set_member(pPlayer, m_flNextAttack, 1.0);
 }
 
 #if defined CUSTOM_WEAPONLIST
 	public CWeapon_AddToPlayer_Post(const pItem, const pPlayer)
 	{
-		new iWeaponKey = get_entvar(pItem, var_impulse);
-		if(iWeaponKey != 0 && iWeaponKey != WEAPON_SPECIAL_CODE) return;
+		new iWeaponUID = get_entvar(pItem, var_impulse);
+		if(iWeaponUID != 0 && iWeaponUID != gl_iAllocString_WeaponUID) return;
 
 		UTIL_WeaponList(pPlayer, pItem);
 	}
@@ -352,7 +353,7 @@ public CWeapon_Holster_Post(const pItem)
 #if defined DYNAMIC_CROSSHAIR
 	public CWeapon_PostFrame_Pre(const pItem)
 	{
-		new pPlayer;
+		static pPlayer;
 		if(!CheckItem(pItem, pPlayer)) return HAM_IGNORED;
 
 		UTIL_ResetCrosshair(pPlayer, pItem);
@@ -362,7 +363,7 @@ public CWeapon_Holster_Post(const pItem)
 
 public CWeapon_Reload_Post(const pItem)
 {
-	new pPlayer;
+	static pPlayer;
 	if(!CheckItem(pItem, pPlayer)) return;
 
 	if(!get_member(pPlayer, m_rgAmmo, get_member(pItem, m_Weapon_iPrimaryAmmoType))) return;
@@ -423,9 +424,9 @@ public CWeapon_PrimaryAttack_Pre(const pItem)
 		if(flAccuracy > 1.0) flAccuracy = 1.0;
 	}
 
-	new fwTraceLine_Post = register_forward(FM_TraceLine, "FM_Hook_TraceLine_Post", true);
+	new FmHook_TraceLine = register_forward(FM_TraceLine, "FM_Hook_TraceLine_Post", true);
 	rg_fire_bullets3(pItem, pPlayer, vecSrc, vecAiming, flSpread, WEAPON_SHOT_DISTANCE, WEAPON_SHOT_PENETRATION, WEAPON_BULLET_TYPE, floatround(WEAPON_DAMAGE), WEAPON_RANGE_MODIFER, false, get_member(pPlayer, random_seed));
-	unregister_forward(FM_TraceLine, fwTraceLine_Post, true);
+	unregister_forward(FM_TraceLine, FmHook_TraceLine, true);
 
 	#if defined CUSTOM_MUZZLEFLASH
 		UTIL_DrawMuzzleFlash(pPlayer, MUZZLEFLASH_SPRITE);
@@ -526,14 +527,14 @@ public CBeam_Think(const pSprite)
 	if(is_nullent(pSprite)) return;
 
 	static Float: flBrightness; flBrightness = Beam_GetBrightness(pSprite);
-	if((flBrightness -= 20.0) && flBrightness < 20.0)
+	if((flBrightness -= 20.0) < 20.0)
 	{
 		UTIL_KillEntity(pSprite);
 		return;
 	}
 
 	Beam_SetBrightness(pSprite, flBrightness);
-	set_entvar(pSprite, var_nextthink, get_gametime() + 0.075);
+	set_entvar(pSprite, var_nextthink, get_gametime() + ENTITY_BEAM_NEXTTHINK);
 }
 
 #if defined CUSTOM_MUZZLEFLASH || defined WALLPUFF_SMOKE
@@ -686,8 +687,8 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 #if defined CUSTOM_MUZZLEFLASH
 	stock UTIL_DrawMuzzleFlash(const pPlayer, const szModel[], const iAttachment = 1, const Float: flScale = 0.08, const Float: flFramerateMlt = 2.0, const Float: flColor[3] = { 0.0, 0.0, 0.0 }, const Float: flBrightness = 255.0)
 	{
-		if(gl_iMaxEntities - engfunc(EngFunc_NumberOfEntities) <= LOWER_LIMIT_OF_ENTITIES) return NULLENT;
 		if(!strlen(szModel)) return NULLENT;
+		if(gl_iMaxEntities - engfunc(EngFunc_NumberOfEntities) <= LOWER_LIMIT_OF_ENTITIES) return NULLENT;
 
 		static pSprite; pSprite = NULLENT;
 		rg_find_ent_by_owner(pSprite, MUZZLEFLASH_CLASSNAME, pPlayer);
@@ -697,7 +698,7 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 			return NULLENT;
 		}
 
-		pSprite = rg_create_entity("env_sprite");
+		pSprite = rg_create_entity(MUZZLEFLASH_REFERENCE);
 		if(is_nullent(pSprite)) return NULLENT;
 
 		new Float: flFrames = float(engfunc(EngFunc_ModelFrames, engfunc(EngFunc_ModelIndex, szModel)));
