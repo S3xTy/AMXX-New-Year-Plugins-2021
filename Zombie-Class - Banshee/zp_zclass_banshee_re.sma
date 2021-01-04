@@ -342,7 +342,7 @@ public CBats_Think(const pEntity)
 
 	new Float: vecVelocity[3];
 	new pVictim = get_entvar(pEntity, var_aiment);
-	if(!is_nullent(pVictim) && is_user_alive(pVictim))
+	if(is_user_alive(pVictim))
 	{
 		new Float: vecOrigin[3]; get_entvar(pOwner, var_origin, vecOrigin);
 		new Float: vecVictimOrigin[3]; get_entvar(pVictim, var_origin, vecVictimOrigin);
