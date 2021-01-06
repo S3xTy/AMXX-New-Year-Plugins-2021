@@ -678,19 +678,19 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 
 		message_begin(MSG_ONE, gl_iMsgID_Weaponlist, .player = pPlayer);
 		write_string(szWeaponName);
-		write_byte(rg_get_weapon_info(get_member(pItem, m_iId), WI_AMMO_TYPE));
+		write_byte(get_member(pItem, m_Weapon_iPrimaryAmmoType));
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo1));
 		write_byte(get_member(pItem, m_Weapon_iSecondaryAmmoType));
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo2));
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iSlot));
 		write_byte(13);
-		write_byte(7);
+		write_byte(WEAPON_MAC10);
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iFlags));
 		message_end();
 
 		message_begin(MSG_ONE, gl_iMsgID_CurWeapon, .player = pPlayer);
 		write_byte(true);
-		write_byte(7);
+		write_byte(WEAPON_MAC10);
 		write_byte(GetItemClip(pItem));
 		message_end();
 
