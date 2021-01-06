@@ -18,7 +18,6 @@
 
 /* ~ [ Macroses ] ~ */
 #define EJECT_BRASS						// Comment this line if u dont need eject brass (shell)
-#define CUSTOM_WEAPONLIST 				// Comment this line if u dont need weapon list
 #define CUSTOM_MUZZLEFLASH				// Comment this line if u dont need custom muzzle flash
 #define WALLPUFF_SMOKE					// Comment this line if u dont need wallpuff smoke
 #define DYNAMIC_CROSSHAIR 				// Comment this line if u dont need dynamic crosshair (With it not work's plugin Unlimited Clip)
@@ -55,16 +54,14 @@ new const WEAPON_SOUNDS[][] =
 	"weapons/charger5_clipin2.wav",
 	"weapons/charger5_clipout.wav"
 };
-#if defined CUSTOM_WEAPONLIST
-	new const WEAPON_WEAPONLIST[] = 	"x_re/weapon_charger5";
-	new const WEAPON_RESOURCES[][] =
-	{
-		// Custom resources precache, sprites for example
-		"sprites/x_re/640hud3.spr",
-		"sprites/x_re/640hud8.spr",
-		"sprites/x_re/640hud167.spr"
-	};
-#endif
+new const WEAPON_WEAPONLIST[] = 	"x_re/weapon_charger5";
+new const WEAPON_RESOURCES[][] =
+{
+	// Custom resources precache, sprites for example
+	"sprites/x_re/640hud3.spr",
+	"sprites/x_re/640hud8.spr",
+	"sprites/x_re/640hud167.spr"
+};
 #if defined CUSTOM_MUZZLEFLASH
 	#define var_max_frame var_yaw_speed
 	new const MUZZLEFLASH_REFERENCE[] = "env_sprite";
@@ -126,9 +123,7 @@ new gl_iszModelIndex_BloodSpray, gl_iszModelIndex_BloodDrop;
 #if defined EJECT_BRASS
 	new gl_iszModelIndex_Shell;
 #endif
-#if defined CUSTOM_WEAPONLIST || defined DYNAMIC_CROSSHAIR
-	new gl_iMsgID_Weaponlist;
-#endif
+new gl_iMsgID_Weaponlist;
 #if defined DYNAMIC_CROSSHAIR
 	new gl_iMsgID_CurWeapon;
 #endif
@@ -150,10 +145,7 @@ public plugin_init()
 
 	RegisterHam(Ham_Item_Deploy, WEAPON_REFERENCE, "CWeapon_Deploy_Post", true);
 	RegisterHam(Ham_Item_Holster, WEAPON_REFERENCE, "CWeapon_Holster_Post", true);
-
-	#if defined CUSTOM_WEAPONLIST
-		RegisterHam(Ham_Item_AddToPlayer, WEAPON_REFERENCE, "CWeapon_AddToPlayer_Post", true);
-	#endif
+	RegisterHam(Ham_Item_AddToPlayer, WEAPON_REFERENCE, "CWeapon_AddToPlayer_Post", true);
 	#if defined DYNAMIC_CROSSHAIR
 		RegisterHam(Ham_Item_PostFrame, WEAPON_REFERENCE, "CWeapon_PostFrame_Pre", false);
 	#endif
@@ -171,29 +163,27 @@ public plugin_init()
 	gl_iItemID = zp_register_extra_item(EXTRA_ITEM_NAME, EXTRA_ITEM_COST, ZP_TEAM_HUMAN);
 
 	/* -> Messages -> */
-	#if defined CUSTOM_WEAPONLIST || defined DYNAMIC_CROSSHAIR
-		gl_iMsgID_Weaponlist = get_user_msgid("WeaponList");
-	#endif
+	gl_iMsgID_Weaponlist = get_user_msgid("WeaponList");
 	#if defined DYNAMIC_CROSSHAIR
 		gl_iMsgID_CurWeapon = get_user_msgid("CurWeapon");
 	#endif
 
 	/* -> Other -> */
-	gl_iMaxEntities = global_get(glb_maxEntities);
+	#if defined CUSTOM_MUZZLEFLASH || defined WALLPUFF_SMOKE
+		gl_iMaxEntities = global_get(glb_maxEntities);
+	#endif
 	gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_WEAPONLIST);
 }
 
 public plugin_precache()
 {
-	#if defined CUSTOM_WEAPONLIST
-		/* -> Hook Weapon -> */
-		register_clcmd(WEAPON_WEAPONLIST, "Command_HookWeapon");
+	/* -> Hook Weapon -> */
+	register_clcmd(WEAPON_WEAPONLIST, "Command_HookWeapon");
 
-		/* -> Precache Generic -> */
-		engfunc(EngFunc_PrecacheGeneric, fmt("sprites/%s.txt", WEAPON_WEAPONLIST));
+	/* -> Precache Generic -> */
+	engfunc(EngFunc_PrecacheGeneric, fmt("sprites/%s.txt", WEAPON_WEAPONLIST));
 
-		PrecacheArray(Generic, WEAPON_RESOURCES);
-	#endif
+	PrecacheArray(Generic, WEAPON_RESOURCES);
 
 	/* -> Precache Models -> */
 	engfunc(EngFunc_PrecacheModel, WEAPON_MODEL_VIEW);
@@ -223,13 +213,11 @@ public plugin_precache()
 
 public plugin_natives() register_native(WEAPON_NATIVE, "Command_GiveWeapon", 1);
 
-#if defined CUSTOM_WEAPONLIST
-	public Command_HookWeapon(const pPlayer)
-	{
-		engclient_cmd(pPlayer, WEAPON_REFERENCE);
-		return PLUGIN_HANDLED;
-	}
-#endif
+public Command_HookWeapon(const pPlayer)
+{
+	engclient_cmd(pPlayer, WEAPON_REFERENCE);
+	return PLUGIN_HANDLED;
+}
 
 public Command_GiveWeapon(const pPlayer)
 {
@@ -299,13 +287,10 @@ public CWeapon_Spawn_Post(const pItem)
 	set_member(pItem, m_Weapon_iClip, WEAPON_MAX_CLIP);
 	set_member(pItem, m_Weapon_iDefaultAmmo, WEAPON_DEFAULT_AMMO);
 	set_member(pItem, m_Weapon_bHasSecondaryAttack, true);
+
+	rg_set_iteminfo(pItem, ItemInfo_pszName, WEAPON_WEAPONLIST);
 	rg_set_iteminfo(pItem, ItemInfo_iMaxClip, WEAPON_MAX_CLIP);
 	rg_set_iteminfo(pItem, ItemInfo_iMaxAmmo1, WEAPON_DEFAULT_AMMO);
-
-	#if defined CUSTOM_WEAPONLIST
-		rg_set_iteminfo(pItem, ItemInfo_pszName, WEAPON_WEAPONLIST);
-	#endif
-	
 }
 
 public CWeapon_Deploy_Post(const pItem)
@@ -340,15 +325,13 @@ public CWeapon_Holster_Post(const pItem)
 	set_member(pPlayer, m_flNextAttack, 1.0);
 }
 
-#if defined CUSTOM_WEAPONLIST
-	public CWeapon_AddToPlayer_Post(const pItem, const pPlayer)
-	{
-		new iWeaponUID = get_entvar(pItem, var_impulse);
-		if(iWeaponUID != 0 && iWeaponUID != gl_iAllocString_WeaponUID) return;
+public CWeapon_AddToPlayer_Post(const pItem, const pPlayer)
+{
+	new iWeaponUID = get_entvar(pItem, var_impulse);
+	if(iWeaponUID != 0 && iWeaponUID != gl_iAllocString_WeaponUID) return;
 
-		UTIL_WeaponList(pPlayer, pItem);
-	}
-#endif
+	UTIL_WeaponList(pPlayer, pItem);
+}
 
 #if defined DYNAMIC_CROSSHAIR
 	public CWeapon_PostFrame_Pre(const pItem)
@@ -665,24 +648,22 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 	UTIL_PlayerAnimation(pPlayer, szAnimation);
 }
 
-#if defined CUSTOM_WEAPONLIST
-	stock UTIL_WeaponList(const pPlayer, const pItem)
-	{
-		new szWeaponName[32]; rg_get_iteminfo(pItem, ItemInfo_pszName, szWeaponName, charsmax(szWeaponName));
+stock UTIL_WeaponList(const pPlayer, const pItem)
+{
+	new szWeaponName[32]; rg_get_iteminfo(pItem, ItemInfo_pszName, szWeaponName, charsmax(szWeaponName));
 
-		message_begin(MSG_ONE, gl_iMsgID_Weaponlist, .player = pPlayer);
-		write_string(szWeaponName);
-		write_byte(get_member(pItem, m_Weapon_iPrimaryAmmoType));
-		write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo1));
-		write_byte(get_member(pItem, m_Weapon_iSecondaryAmmoType));
-		write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo2));
-		write_byte(rg_get_iteminfo(pItem, ItemInfo_iSlot));
-		write_byte(rg_get_iteminfo(pItem, ItemInfo_iPosition));
-		write_byte(rg_get_iteminfo(pItem, ItemInfo_iId));
-		write_byte(rg_get_iteminfo(pItem, ItemInfo_iFlags));
-		message_end();
-	}
-#endif
+	message_begin(MSG_ONE, gl_iMsgID_Weaponlist, .player = pPlayer);
+	write_string(szWeaponName);
+	write_byte(get_member(pItem, m_Weapon_iPrimaryAmmoType));
+	write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo1));
+	write_byte(get_member(pItem, m_Weapon_iSecondaryAmmoType));
+	write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo2));
+	write_byte(rg_get_iteminfo(pItem, ItemInfo_iSlot));
+	write_byte(rg_get_iteminfo(pItem, ItemInfo_iPosition));
+	write_byte(rg_get_iteminfo(pItem, ItemInfo_iId));
+	write_byte(rg_get_iteminfo(pItem, ItemInfo_iFlags));
+	message_end();
+}
 
 #if defined CUSTOM_MUZZLEFLASH
 	stock UTIL_DrawMuzzleFlash(const pPlayer, const szModel[], const iAttachment = 1, const Float: flScale = 0.08, const Float: flFramerateMlt = 2.0, const Float: flColor[3] = { 0.0, 0.0, 0.0 }, const Float: flBrightness = 255.0)

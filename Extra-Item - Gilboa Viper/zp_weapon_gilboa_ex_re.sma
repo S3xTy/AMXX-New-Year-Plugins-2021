@@ -18,7 +18,7 @@
 /* ~ [ Macroses ] ~ */
 #define EJECT_BRASS						// Comment this line if u dont need eject brass (shell)
 #define CUSTOM_WEAPONLIST 				// Comment this line if u dont need weapon list
-// #define CUSTOM_MUZZLEFLASH				// Comment this line if u dont need custom muzzle flash
+#define CUSTOM_MUZZLEFLASH				// Comment this line if u dont need custom muzzle flash
 #define WALLPUFF_SMOKE					// Comment this line if u dont need wallpuff smoke
 #define DYNAMIC_CROSSHAIR 				// Comment this line if u dont need dynamic crosshair (With it not work's plugin Unlimited Clip)
 
@@ -97,7 +97,9 @@ enum _: eAnimList
 
 /* ~ [ Params ] ~ */
 new gl_iItemID;
-new gl_iMaxEntities;
+#if defined CUSTOM_MUZZLEFLASH || defined WALLPUFF_SMOKE
+	new gl_iMaxEntities;
+#endif
 new Array: gl_aDecals;
 new gl_FmHook_DecalIndex;
 new gl_iAllocString_WeaponUID;
@@ -157,8 +159,14 @@ public plugin_init()
 	#endif
 
 	/* -> Other -> */
-	gl_iMaxEntities = global_get(glb_maxEntities);
-	gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_WEAPONLIST);
+	#if defined CUSTOM_MUZZLEFLASH || defined WALLPUFF_SMOKE
+		gl_iMaxEntities = global_get(glb_maxEntities);
+	#endif
+	#if defined CUSTOM_WEAPONLIST
+		gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_WEAPONLIST);
+	#else
+		gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_NATIVE);
+	#endif
 }
 
 public plugin_precache()
@@ -605,7 +613,7 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 		}
 
 		pSprite = rg_create_entity(MUZZLEFLASH_REFERENCE);
-		if(is_nullent(pSprite)) return;
+		if(is_nullent(pSprite)) return NULLENT;
 
 		new Float: flFrames = float(engfunc(EngFunc_ModelFrames, engfunc(EngFunc_ModelIndex, szModel)));
 

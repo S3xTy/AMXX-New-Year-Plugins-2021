@@ -162,7 +162,11 @@ public plugin_init()
 
 	/* -> Other -> */
 	gl_iMaxEntities = global_get(glb_maxEntities);
-	gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_WEAPONLIST);
+	#if defined CUSTOM_WEAPONLIST
+		gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_WEAPONLIST);
+	#else
+		gl_iAllocString_WeaponUID = engfunc(EngFunc_AllocString, WEAPON_NATIVE);
+	#endif
 }
 
 public plugin_precache()
