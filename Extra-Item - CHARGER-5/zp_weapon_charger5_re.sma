@@ -1038,13 +1038,10 @@ stock UTIL_GetWeaponPosition(const pPlayer, const Float: flForward, const Float:
 	new Float: vecRight[3]; angle_vector(vecViewAngle, ANGLEVECTOR_RIGHT, vecRight);
 	new Float: vecUp[3]; angle_vector(vecViewAngle, ANGLEVECTOR_UP, vecUp);
 
-	xs_vec_mul_scalar(vecForward, flForward, vecForward);
-	xs_vec_mul_scalar(vecRight, flRight, vecRight);
-	xs_vec_mul_scalar(vecUp, flUp, vecUp);
 	xs_vec_add(vecOrigin, vecViewOfs, vecOrigin);
-	xs_vec_add(vecOrigin, vecForward, vecOrigin);
-	xs_vec_add(vecOrigin, vecRight, vecOrigin);
-	xs_vec_add(vecOrigin, vecUp, vecOrigin);
+	xs_vec_add_scaled(vecOrigin, vecForward, flForward, vecOrigin);
+	xs_vec_add_scaled(vecOrigin, vecRight, flRight, vecOrigin);
+	xs_vec_add_scaled(vecOrigin, vecUp, flUp, vecOrigin);
 	xs_vec_copy(vecOrigin, vecStart);
 }
 

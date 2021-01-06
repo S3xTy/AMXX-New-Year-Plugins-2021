@@ -694,18 +694,18 @@ stock UTIL_CreateExplosion(const Float: vecOrigin[3], const Float: flUp, const i
 
 stock UTIL_GetWeaponPosition(const pPlayer, const Float: flForward, const Float: flRight, const Float: flUp, Float: vecStart[]) 
 {
-	static Float: vecOrigin[3]; get_entvar(pPlayer, var_origin, vecOrigin);
-	static Float: vecViewOfs[3]; get_entvar(pPlayer, var_view_ofs, vecViewOfs);
+	new Float: vecOrigin[3]; get_entvar(pPlayer, var_origin, vecOrigin);
+	new Float: vecViewOfs[3]; get_entvar(pPlayer, var_view_ofs, vecViewOfs);
+	new Float: vecViewAngle[3]; get_entvar(pPlayer, var_v_angle, vecViewAngle);
+	new Float: vecForward[3]; angle_vector(vecViewAngle, ANGLEVECTOR_FORWARD, vecForward);
+	new Float: vecRight[3]; angle_vector(vecViewAngle, ANGLEVECTOR_RIGHT, vecRight);
+	new Float: vecUp[3]; angle_vector(vecViewAngle, ANGLEVECTOR_UP, vecUp);
+
 	xs_vec_add(vecOrigin, vecViewOfs, vecOrigin);
-	
-	static Float: vecViewAngle[3]; get_entvar(pPlayer, var_v_angle, vecViewAngle);
-	static Float: vecForward[3]; angle_vector(vecViewAngle, ANGLEVECTOR_FORWARD, vecForward);
-	static Float: vecRight[3]; angle_vector(vecViewAngle, ANGLEVECTOR_RIGHT, vecRight);
-	static Float: vecUp[3]; angle_vector(vecViewAngle, ANGLEVECTOR_UP, vecUp);
-	
-	vecStart[0] = vecOrigin[0] + vecForward[0] * flForward + vecRight[0] * flRight + vecUp[0] * flUp;
-	vecStart[1] = vecOrigin[1] + vecForward[1] * flForward + vecRight[1] * flRight + vecUp[1] * flUp;
-	vecStart[2] = vecOrigin[2] + vecForward[2] * flForward + vecRight[2] * flRight + vecUp[2] * flUp;
+	xs_vec_add_scaled(vecOrigin, vecForward, flForward, vecOrigin);
+	xs_vec_add_scaled(vecOrigin, vecRight, flRight, vecOrigin);
+	xs_vec_add_scaled(vecOrigin, vecUp, flUp, vecOrigin);
+	xs_vec_copy(vecOrigin, vecStart);
 }
 
 stock UTIL_WeaponKickBack(const pItem, const pPlayer, Float: flUpBase, Float: flLateralBase, Float: flUpModifier, Float: flLateralModifier, Float: flUpMax, Float: flLateralMax, iDirectionChange)
