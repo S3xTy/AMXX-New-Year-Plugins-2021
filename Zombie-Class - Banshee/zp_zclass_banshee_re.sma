@@ -461,7 +461,7 @@ stock UTIL_CurWeapon(const pPlayer, const bool: bIsActive, const iWeaponId, cons
 	static iMsgId_CurWeapon;
 	if(iMsgId_CurWeapon || (iMsgId_CurWeapon = get_user_msgid("CurWeapon")))
 	{
-		message_begin_f(MSG_ONE, iMsgId_CurWeapon, .player = pPlayer);
+		message_begin(MSG_ONE, iMsgId_CurWeapon, .player = pPlayer);
 		write_byte(bIsActive);
 		write_byte(iWeaponId);
 		write_byte(iClipAmmo);
