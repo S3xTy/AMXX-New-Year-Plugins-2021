@@ -247,7 +247,6 @@ public FM_Hook_TraceLine_Post(const Float: vecSrc[3], const Float: vecEnd[3], co
 	new Float: flFraction; get_tr2(pTrace, TR_flFraction, flFraction);
 	if(flFraction == 1.0) return;
 
-	UTIL_GunshotDecalTrace(0);
 	UTIL_GunshotDecalTrace(pTrace, true);
 }
 
@@ -684,13 +683,13 @@ stock UTIL_SendPlayerAnim(const pPlayer, const szAnim[])
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo2));
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iSlot));
 		write_byte(13);
-		write_byte(WEAPON_MAC10);
+		write_byte(CSW_MAC10);
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iFlags));
 		message_end();
 
 		message_begin(MSG_ONE, gl_iMsgID_CurWeapon, .player = pPlayer);
 		write_byte(true);
-		write_byte(WEAPON_MAC10);
+		write_byte(CSW_MAC10);
 		write_byte(GetItemClip(pItem));
 		message_end();
 

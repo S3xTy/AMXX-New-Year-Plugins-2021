@@ -261,7 +261,6 @@ public FM_Hook_TraceLine_Post(const Float: vecSrc[3], const Float: vecEnd[3], co
 	new Float: flFraction; get_tr2(pTrace, TR_flFraction, flFraction);
 	if(flFraction == 1.0) return;
 
-	UTIL_GunshotDecalTrace(0);
 	UTIL_GunshotDecalTrace(pTrace, true);
 }
 
@@ -472,22 +471,75 @@ public CWeapon_SecondaryAttack_Pre(const pItem)
 		return HAM_SUPERCEDE;
 	}
 
-	new Float: vecStart[3]; UTIL_GetWeaponPosition(pPlayer, 20.0, 5.5, -5.0, vecStart);
-	new Float: vecEndPos[3]; UTIL_FakeFireBullets3(pPlayer, pItem, 4096.0, WEAPON_SHOT_PENETRATION_B_MODE, WEAPON_DAMAGE_B_MODE, 0.98, vecEndPos);
+	new Float: flDamage = WEAPON_DAMAGE_B_MODE, 
+		Float: flDamageModifier = 0.5, 
+		Float: flRangeModifier = 0.98, 
+		Float: flDistance = 2048.0;
+
+	new Float: vecOrigin[3]; get_entvar(pPlayer, var_origin, vecOrigin);
+	new Float: vecViewOfs[3]; get_entvar(pPlayer, var_view_ofs, vecViewOfs);
+
+	xs_vec_add(vecOrigin, vecViewOfs, vecOrigin);
+
+	new Float: vecPunchAngle[3]; get_entvar(pPlayer, var_punchangle, vecPunchAngle);
+	new Float: vecViewAngle[3]; get_entvar(pPlayer, var_v_angle, vecViewAngle);
+
+	xs_vec_add(vecViewAngle, vecPunchAngle, vecViewAngle);
+
+	new Float: vecForward[3]; angle_vector(vecViewAngle, ANGLEVECTOR_FORWARD, vecForward);
+	new Float: vecStart[3]; xs_vec_copy(vecOrigin, vecStart);
+	new Float: vecEnd[3]; xs_vec_add_scaled(vecStart, vecForward, flDistance, vecEnd);
+
+	new pTrace = create_tr2(), pHit = pPlayer;
+	new Float: vecEndPos[3], Float: vecPlaneNormal[3], Float: flFraction, Float: flCurrentDistance;
+
+	while(flCurrentDistance < flDistance)
+	{
+		engfunc(EngFunc_TraceLine, vecStart, vecEnd, DONT_IGNORE_MONSTERS, pHit, pTrace);
+		get_tr2(pTrace, TR_flFraction, flFraction);
+
+		if(flFraction == 1.0) break;
+
+		get_tr2(pTrace, TR_vecEndPos, vecEndPos);
+		if(engfunc(EngFunc_PointContents, vecEndPos) == CONTENTS_SKY) break;
+
+		pHit = get_tr2(pTrace, TR_pHit);
+		get_tr2(pTrace, TR_vecPlaneNormal, vecPlaneNormal);
+
+		UTIL_GunshotDecalTrace(pTrace, true);
+
+		flCurrentDistance = flFraction * flDistance;
+		flDistance -= flCurrentDistance;
+		xs_vec_add(vecEndPos, vecForward, vecStart);
+		xs_vec_add_scaled(vecStart, vecForward, flDistance, vecEnd);
+
+		if(is_nullent(pHit) || pHit == pPlayer) continue;
+		if(get_entvar(pHit, var_solid) != SOLID_BSP) flDamageModifier = 0.75;
+
+		flDamage *= floatpower(flRangeModifier, flCurrentDistance / 500.0);
+
+		rg_multidmg_clear();
+		ExecuteHamB(Ham_TraceAttack, pHit, pPlayer, flDamage, vecForward, pTrace, DMG_BULLET|DMG_NEVERGIB);
+		rg_multidmg_apply(pItem, pPlayer);
+
+		flDamage *= flDamageModifier;
+	}
+
+	free_tr2(pTrace);
 
 	// Beam
+	new pBeam = Beam_Create(ENTITY_BEAM_SPRITE, ENTITY_BEAM_WIDTH);
+	if(!is_nullent(pBeam))
 	{
-		new pBeam = Beam_Create(ENTITY_BEAM_SPRITE, ENTITY_BEAM_WIDTH);
-		if(!is_nullent(pBeam))
-		{
-			Beam_PointsInit(pBeam, vecStart, vecEndPos);
-			Beam_SetBrightness(pBeam, 255.0);
-			Beam_SetColor(pBeam, Float: { 52.0, 235.0, 229.0 });
-			Beam_SetScrollRate(pBeam, 20.0);
-			set_entvar(pBeam, var_nextthink, get_gametime());
+		new Float: vecStart[3]; UTIL_GetWeaponPosition(pPlayer, 20.0, 5.5, -5.0, vecStart);
 
-			SetThink(pBeam, "CBeam_Think");
-		}
+		Beam_PointsInit(pBeam, vecStart, vecEndPos);
+		Beam_SetBrightness(pBeam, 255.0);
+		Beam_SetColor(pBeam, Float: { 52.0, 235.0, 229.0 });
+		Beam_SetScrollRate(pBeam, 20.0);
+		set_entvar(pBeam, var_nextthink, get_gametime());
+
+		SetThink(pBeam, "CBeam_Think");
 	}
 
 	UTIL_SendWeaponAnim(pPlayer, WEAPON_ANIM_SHOOT_LASER);
@@ -751,13 +803,13 @@ stock UTIL_WeaponList(const pPlayer, const pItem)
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo2));
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iSlot));
 		write_byte(13);
-		write_byte(WEAPON_MAC10);
+		write_byte(CSW_MAC10);
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iFlags));
 		message_end();
 
 		message_begin(MSG_ONE, gl_iMsgID_CurWeapon, .player = pPlayer);
 		write_byte(true);
-		write_byte(WEAPON_MAC10);
+		write_byte(CSW_MAC10);
 		write_byte(GetItemClip(pItem));
 		message_end();
 
@@ -778,175 +830,6 @@ stock UTIL_WeaponList(const pPlayer, const pItem)
 		}
 	}
 #endif
-
-// https://github.com/s1lentq/ReGameDLL_CS/blob/e199b164635d5237d3ae7c6a4f0bdabd8c7c2a7e/regamedll/dlls/cbase.cpp#L1232
-stock UTIL_FakeFireBullets3(const pPlayer, const pItem, Float: flDistance = 8192.0, iPenetration = 0, Float: flDamage, const Float: flRangeModifier, Float: vecEndPosCopy[3])
-{
-	new Float: vecOrigin[3]; get_entvar(pPlayer, var_origin, vecOrigin);
-	new Float: vecViewOfs[3]; get_entvar(pPlayer, var_view_ofs, vecViewOfs);
-	xs_vec_add(vecOrigin, vecViewOfs, vecOrigin);
-
-	new Float: vecPunchAngle[3]; get_entvar(pPlayer, var_punchangle, vecPunchAngle);
-	new Float: vecViewAngle[3]; get_entvar(pPlayer, var_v_angle, vecViewAngle);
-	xs_vec_add(vecViewAngle, vecPunchAngle, vecViewAngle);
-
-	new Float: vecForward[3], Float: vecRight[3], Float: vecUp[3];
-	engfunc(EngFunc_AngleVectors, vecViewAngle, vecForward, vecRight, vecUp);
-
-	new Float: flX, Float: flY, Float: flZ;
-	do
-	{
-		flX = random_float(-0.5, 0.5) + random_float(-0.5, 0.5);
-		flY = random_float(-0.5, 0.5) + random_float(-0.5, 0.5);
-		flZ = flX * flX + flY * flY;
-	}
-	while(flZ > 1.0);
-
-	new Float: vecDirection[3], Float: vecEnd[3];
-	vecDirection[0] = vecForward[0] + flX * 0.0 * vecRight[0] + flY * 0.0 * vecUp[0];
-	vecDirection[1] = vecForward[1] + flX * 0.0 * vecRight[1] + flY * 0.0 * vecUp[1];
-	vecDirection[2] = vecForward[2] + flX * 0.0 * vecRight[2] + flY * 0.0 * vecUp[2];
-
-	vecEnd[0] = vecOrigin[0] + vecDirection[0] * flDistance;
-	vecEnd[1] = vecOrigin[1] + vecDirection[1] * flDistance;
-	vecEnd[2] = vecOrigin[2] + vecDirection[2] * flDistance;
-
-	new Float: flPenetrationPower = 39.0;
-	new Float: flPenetrationDistance = 5000.0;
-	new Float: flCurrentDistance;
-	new Float: flDamageModifier = 0.5;
-	new Float: flDistanceModifier;
-
-	new pTrace = create_tr2(), pHit;
-	new Float: flFraction, Float: vecEndPos[3];
-
-	while(iPenetration)
-	{
-		engfunc(EngFunc_TraceLine, vecOrigin, vecEnd, DONT_IGNORE_MONSTERS, pPlayer, pTrace);
-		get_tr2(pTrace, TR_flFraction, flFraction);
-
-		new szTextureName[64]; engfunc(EngFunc_TraceTexture, 0, vecOrigin, vecEnd, szTextureName, charsmax(szTextureName));
-		new cTextureType = dllfunc(DLLFunc_PM_FindTextureType, szTextureName);
-
-		#define CHAR_TEX_METAL			'M'
-		#define CHAR_TEX_CONCRETE		'C'
-		#define CHAR_TEX_GRATE			'G'
-		#define CHAR_TEX_VENT			'V'
-		#define CHAR_TEX_TILE			'T'
-		#define CHAR_TEX_COMPUTER		'P'
-		#define CHAR_TEX_WOOD			'W'
-
-		switch(cTextureType)
-		{
-			case CHAR_TEX_METAL: flPenetrationPower *= 0.15, flDamageModifier = 0.2;
-			case CHAR_TEX_CONCRETE: flPenetrationPower *= 0.25;
-			case CHAR_TEX_GRATE: flPenetrationPower *= 0.5, flDamageModifier = 0.4;
-			case CHAR_TEX_VENT: flPenetrationPower *= 0.5, flDamageModifier = 0.45;
-			case CHAR_TEX_TILE: flPenetrationPower *= 0.65, flDamageModifier = 0.3;
-			case CHAR_TEX_COMPUTER: flPenetrationPower *= 0.4, flDamageModifier = 0.45;
-			case CHAR_TEX_WOOD: flDamageModifier = 0.6;
-		}
-
-		if(flFraction != 1.0)
-		{
-			UTIL_GunshotDecalTrace(0);
-			UTIL_GunshotDecalTrace(pTrace, true);
-
-			pHit = get_tr2(pTrace, TR_pHit);
-			pHit = pHit > 0 ? pHit : 0;
-
-			iPenetration--;
-
-			flCurrentDistance = flFraction * flDistance;
-			flDamage *= floatpower(flRangeModifier, flCurrentDistance / 500.0);
-
-			if(flCurrentDistance > flPenetrationDistance) iPenetration = 0;
-
-			if(get_entvar(pHit, var_solid) != SOLID_BSP || !iPenetration)
-			{
-				flPenetrationPower = 42.0;
-				flDamageModifier = 0.75;
-				flDistanceModifier = 0.75;
-			}
-			else flDistanceModifier = 0.5
-
-			get_tr2(pTrace, TR_vecEndPos, vecEndPos);
-
-			vecOrigin[0] = vecEndPos[0] + vecDirection[0] * flPenetrationPower;
-			vecOrigin[1] = vecEndPos[1] + vecDirection[1] * flPenetrationPower;
-			vecOrigin[2] = vecEndPos[2] + vecDirection[2] * flPenetrationPower;
-
-			flDistance = (flDistance - flCurrentDistance) * flDistanceModifier;
-
-			vecEnd[0] = vecOrigin[0] + vecDirection[0] * flDistance;
-			vecEnd[1] = vecOrigin[1] + vecDirection[1] * flDistance;
-			vecEnd[2] = vecOrigin[2] + vecDirection[2] * flDistance;
-			
-			UTIL_FakeTraceAttack(pHit, pItem, pPlayer, flDamage, vecEndPos, vecDirection, pTrace, DMG_BULLET|DMG_NEVERGIB);
-			flDamage *= flDamageModifier;
-		}
-		else iPenetration = 0;
-	}
-
-	free_tr2(pTrace);
-	xs_vec_copy(vecEndPos, vecEndPosCopy); // Get EndPos
-}
-
-// https://github.com/s1lentq/ReGameDLL_CS/blob/3878f46678049201fb35f00168c9f9e1f493a8b9/regamedll/dlls/player.cpp#L581
-stock UTIL_FakeTraceAttack(const pVictim, const pInflictor, const pAttacker, Float: flDamage, Float: vecEndPos[3], const Float: vecDirection[3], const pTrace, const iBitsDamageType)
-{
-	if(get_entvar(pVictim, var_takedamage) == DAMAGE_NO)
-		return;
-
-	if(pVictim == pAttacker || is_user_alive(pVictim) && !rg_is_player_can_takedamage(pVictim, pAttacker))
-		return;
-
-	new iHitGroup = get_tr2(pTrace, TR_iHitgroup);
-	static Float: vecPunchAngle[3];
-	switch(iHitGroup)
-	{
-		case HIT_HEAD:
-		{
-			flDamage *= 4.0;
-			vecPunchAngle[0] = flDamage * -0.5;
-			if(vecPunchAngle[0] < -12.0) vecPunchAngle[0] = -12.0;
-
-			vecPunchAngle[2] = flDamage * random_float(-1.0, 1.0);
-			if(vecPunchAngle[2] < -9.0) vecPunchAngle[2] = -9.0;
-			else if(vecPunchAngle[2] > 9.0) vecPunchAngle[2] = 9.0;
-
-			set_entvar(pVictim, var_punchangle, vecPunchAngle);
-		}
-		case HIT_CHEST:
-		{
-			flDamage *= 1.0;
-			vecPunchAngle[0] = flDamage * -0.1;
-			if(vecPunchAngle[0] < -4.0) vecPunchAngle[0] = -4.0;
-
-			set_entvar(pVictim, var_punchangle, vecPunchAngle);
-		}
-		case HIT_STOMACH:
-		{
-			flDamage *= 1.25;
-			vecPunchAngle[0] = flDamage * -0.1;
-			if(vecPunchAngle[0] < -4.0) vecPunchAngle[0] = -4.0;
-
-			set_entvar(pVictim, var_punchangle, vecPunchAngle);
-		}
-		case HIT_LEFTLEG, HIT_RIGHTLEG: flDamage *= 0.75;
-	}
-
-	if(IsEntityUser(pVictim)) set_member(pVictim, m_LastHitGroup, iHitGroup);
-	ExecuteHamB(Ham_TakeDamage, pVictim, pInflictor, pAttacker, flDamage, iBitsDamageType);
-
-	static iBloodColor;
-	if((iBloodColor = ExecuteHamB(Ham_BloodColor, pVictim)) != DONT_BLEED)
-	{
-		xs_vec_sub_scaled(vecEndPos, vecDirection, 4.0, vecEndPos);
-		UTIL_BloodDrips(vecEndPos, iBloodColor, floatround(flDamage));
-		ExecuteHamB(Ham_TraceBleed, pVictim, flDamage, vecDirection, pTrace, iBitsDamageType);
-	}
-}
 
 stock UTIL_WeaponKickBack(const pItem, const pPlayer, Float: flUpBase, Float: flLateralBase, Float: flUpModifier, Float: flLateralModifier, Float: flUpMax, Float: flLateralMax, iDirectionChange)
 {
