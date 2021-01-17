@@ -803,13 +803,13 @@ stock UTIL_WeaponList(const pPlayer, const pItem)
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iMaxAmmo2));
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iSlot));
 		write_byte(13);
-		write_byte(CSW_MAC10);
+		write_byte(any: WEAPON_MAC10);
 		write_byte(rg_get_iteminfo(pItem, ItemInfo_iFlags));
 		message_end();
 
 		message_begin(MSG_ONE, gl_iMsgID_CurWeapon, .player = pPlayer);
 		write_byte(true);
-		write_byte(CSW_MAC10);
+		write_byte(any: WEAPON_MAC10);
 		write_byte(GetItemClip(pItem));
 		message_end();
 
