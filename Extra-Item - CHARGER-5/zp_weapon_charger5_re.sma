@@ -24,7 +24,6 @@
 
 #define LOWER_LIMIT_OF_ENTITIES			100
 
-#define IsEntityUser(%0) 				(%0 && 0 < MaxClients < 33 && is_user_connected(%0))
 #define IsCustomWeapon(%0) 				(get_entvar(%0, var_impulse) == gl_iAllocString_WeaponUID)
 #define GetItemClip(%0) 				get_member(%0, m_Weapon_iClip)
 #define PrecacheArray(%0,%1)			for(new i; i < sizeof %1; i++) engfunc(EngFunc_Precache%0, %1[i])
