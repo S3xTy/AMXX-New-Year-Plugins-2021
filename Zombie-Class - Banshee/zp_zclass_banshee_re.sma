@@ -10,7 +10,7 @@
 
 #define PrecacheArray(%0,%1) 			for(new i; i < sizeof %1; i++) engfunc(EngFunc_Precache%0, %1[i])
 #define _is_user_zombie(%0) 			zp_get_user_zombie(%0)
-#define _is_banshee_zombie_class(%0) 	(zp_get_user_zombie_class(%0) == gl_iZClassID)
+#define _is_banshee_zombie_class(%0) 	BIT_VALID(gl_bitPlayerBanshee, %0)
 
 #define BIT_ADD(%0,%1)					(%0 |= BIT(%1))
 #define BIT_SUB(%0,%1)					(%0 &= ~BIT(%1))
@@ -109,7 +109,7 @@ public Command_HookWeapon(const pPlayer)
 
 public Command_HookDrop(const pPlayer)
 {
-	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || !BIT_VALID(gl_bitPlayerBanshee, pPlayer) || zp_get_user_nemesis(pPlayer)) return PLUGIN_CONTINUE;
+	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || zp_get_user_nemesis(pPlayer)) return PLUGIN_CONTINUE;
 
 	new pActiveItem = get_member(pPlayer, m_pActiveItem);
 	if(!is_nullent(pActiveItem) && get_member(pActiveItem, m_iId) != WEAPON_KNIFE) return PLUGIN_CONTINUE;
@@ -136,21 +136,18 @@ public Command_HookDrop(const pPlayer)
 /* -> [ Zombie Plague ] -> */
 public zp_user_infected_post(pPlayer)
 {
+	if(zp_get_user_zombie_class(pPlayer) == gl_iZClassID)
+		BIT_ADD(gl_bitPlayerBanshee, pPlayer);
+	else BIT_SUB(gl_bitPlayerBanshee, pPlayer);
+
 	new pKnife = rg_find_weapon_bpack_by_name(pPlayer, "weapon_knife");
 	if(!is_nullent(pKnife))
 	{
 		gl_flAbilityWait[pPlayer] = get_gametime();
 
 		if(_is_banshee_zombie_class(pPlayer))
-		{
 			rg_set_iteminfo(pKnife, ItemInfo_pszName, WEAPONLIST_PATH);
-			BIT_ADD(gl_bitPlayerBanshee, pPlayer);
-		}
-		else
-		{
-			rg_set_iteminfo(pKnife, ItemInfo_pszName, "weapon_knife");
-			BIT_SUB(gl_bitPlayerBanshee, pPlayer);
-		}
+		else rg_set_iteminfo(pKnife, ItemInfo_pszName, "weapon_knife");
 
 		UTIL_WeaponList(pPlayer, pKnife);
 	}
@@ -183,7 +180,7 @@ public CKnife_Deploy_Post(const pItem)
 	if(is_nullent(pItem)) return;
 
 	new pPlayer = get_member(pPlayer, m_pPlayer);
-	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || !BIT_VALID(gl_bitPlayerBanshee, pPlayer)) return;
+	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer)) return;
 
 	if(gl_flAbilityWait[pPlayer] > get_gametime())
 	{
@@ -206,7 +203,7 @@ public CKnife_PostFrame_Pre(const pItem)
 	if(is_nullent(pItem)) return HAM_IGNORED;
 
 	new pPlayer = get_member(pPlayer, m_pPlayer);
-	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || !BIT_VALID(gl_bitPlayerBanshee, pPlayer)) return HAM_IGNORED;
+	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer)) return HAM_IGNORED;
 
 	if(gl_flAbilityWait[pPlayer] > get_gametime())
 	{
