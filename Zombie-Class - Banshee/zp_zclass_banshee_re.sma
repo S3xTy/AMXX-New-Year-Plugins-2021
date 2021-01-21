@@ -46,10 +46,8 @@ const Float: ENTITY_BATS_CATCH_SPEED =	200.0;
 const Float: ENTITY_BATS_LIFETIME =		3.0;
 
 /* ~ [ Params ] ~ */
-new gl_iZClassID;
-new gl_iMaxEntities;
-new gl_iszModelIndex_Effect;
-new gl_bitPlayerCathced, gl_bitPlayerSkillActive;
+new gl_iZClassID, gl_iMaxEntities, gl_iszModelIndex_Effect;
+new gl_bitPlayerBanshee, gl_bitPlayerCathced, gl_bitPlayerSkillActive;
 new Float: gl_flAbilityWait[MAX_PLAYERS + 1];
 
 enum {
@@ -111,7 +109,7 @@ public Command_HookWeapon(const pPlayer)
 
 public Command_HookDrop(const pPlayer)
 {
-	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || zp_get_user_nemesis(pPlayer)) return PLUGIN_CONTINUE;
+	if(!is_user_alive(pPlayer) || !_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || !BIT_VALID(gl_bitPlayerBanshee, pPlayer) || zp_get_user_nemesis(pPlayer)) return PLUGIN_CONTINUE;
 
 	new pActiveItem = get_member(pPlayer, m_pActiveItem);
 	if(!is_nullent(pActiveItem) && get_member(pActiveItem, m_iId) != WEAPON_KNIFE) return PLUGIN_CONTINUE;
@@ -144,8 +142,15 @@ public zp_user_infected_post(pPlayer)
 		gl_flAbilityWait[pPlayer] = get_gametime();
 
 		if(_is_banshee_zombie_class(pPlayer))
+		{
 			rg_set_iteminfo(pKnife, ItemInfo_pszName, WEAPONLIST_PATH);
-		else rg_set_iteminfo(pKnife, ItemInfo_pszName, "weapon_knife");
+			BIT_ADD(gl_bitPlayerBanshee, pPlayer);
+		}
+		else
+		{
+			rg_set_iteminfo(pKnife, ItemInfo_pszName, "weapon_knife");
+			BIT_SUB(gl_bitPlayerBanshee, pPlayer);
+		}
 
 		UTIL_WeaponList(pPlayer, pKnife);
 	}
@@ -178,7 +183,7 @@ public CKnife_Deploy_Post(const pItem)
 	if(is_nullent(pItem)) return;
 
 	new pPlayer = get_member(pPlayer, m_pPlayer);
-	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer)) return;
+	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || !BIT_VALID(gl_bitPlayerBanshee, pPlayer)) return;
 
 	if(gl_flAbilityWait[pPlayer] > get_gametime())
 	{
@@ -201,7 +206,7 @@ public CKnife_PostFrame_Pre(const pItem)
 	if(is_nullent(pItem)) return HAM_IGNORED;
 
 	new pPlayer = get_member(pPlayer, m_pPlayer);
-	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer)) return HAM_IGNORED;
+	if(!_is_user_zombie(pPlayer) || !_is_banshee_zombie_class(pPlayer) || !BIT_VALID(gl_bitPlayerBanshee, pPlayer)) return HAM_IGNORED;
 
 	if(gl_flAbilityWait[pPlayer] > get_gametime())
 	{
